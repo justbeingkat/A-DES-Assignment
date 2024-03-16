@@ -17,7 +17,7 @@ library(simmer.plot);
 library(fitdistrplus);
 
 # Set the working directory
-setwd("C:/path/to/your/DES files/");
+#setwd("~/A-DES-Assignment");
 
 # Load funtions for extracting monitored attributes
 source("getSingleAttribute.R", echo=T);
@@ -48,11 +48,13 @@ p.death <- 0.03;  # probability of death in a cycle
 
 # Tx1 specific
 c.Tx1.cycle <- 375;   # costs of a cycle of Tx1
-c.Tx1.day <- 8;       # additional dayly costs when on treatment Tx1
+c.Tx1.day <- 8;       # additional daily costs when on treatment Tx1
 u.Tx1 <- 0.55/365;    # utility per day when on treatment Tx1
 
 p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
 p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
+
+Tx1.Response <- 1 #1 = Responder, 0 = not a Responder
 
 # Tx2 specific
 c.Tx2.cycle <- 4000;  # costs of a cycle of Tx2
@@ -63,6 +65,8 @@ u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx1
 p.Tx2.yes.exp <- seq(from=0.39, to=0.47, by=0.02);                                               # probability of effective Tx2 treatment when responded to Tx1, dependent on cycles Tx1 
 p.Tx2.no.exp <- seq(from=0.87, to=0.31, by=-0.14);                                               # probability of effective Tx2 treatment when not responded to Tx1, dependent on cycles Tx1 
 
+Tx2.Response <- 1 #1 = Responder, 0 = not a Responder
+
 # FU1 en FU2 specific
 t.fu1.full <- 63          # average time spent in the first follow up if the patient survives during follow up
 t.fu1.death <- 42         # average time spent in the first follow up if the patient dies during follow up
@@ -71,25 +75,47 @@ p.death.followup <- 0.05; # probability of dying during first follow up
 
 ## Section 3: Supportive functions ----
 
-# Function for determining the event to happen
-Tx1.event <- function() {
+# Functions for determining the event to happen
+
+# Function for defining the event during a cycle of Tx1
+Tx.event.cycle <- function() {
   
-  #Randomly select whether the patient dies with a 10% probability or not
-  event <- ifelse(runif(1) < 0.10, 2, 1);
+  p.complete <- 1 - p.minor - p.major - p.death  
+  #select event during cycle
+  event <- sample(1:4, 1, prob = c(p.complete, p.minor, p.major, p.death))
   
-  return(event);                                                                                                  # A return value equal to 0 skips the branch and continues to the next activity.
+  return(event)
+}
+#Function for defining the event during Follow up 1
+Tx1.event.fu1 <- function() {
   
-} # Function for defining the event during a cycle of Tx1
+  #select event during follow up
+  event <- ifelse(runif(1) < p.death.followup, 2, 1)
+  
+  return(event)
+}
 
 # Functions for determining the time-to-events
-Tx1.time <- function(Tx1.Event) {
-  
-  return(30);
-  
-} # Function for defining the time spent on a cycle of Tx1 
 
-
-
+# Function for defining the time spent on a cycle of Tx1 
+Tx.time.cycle <- function(Tx.event.cycle) {
+    if (event == 1) {
+      return(t.cycle)  # Duration for completing the cycle without any complication
+    } else if (event == 2) {
+      return(t.cycle)  # Duration for minor complications
+    } else if (event == 3) {
+      return(t.major)  # Duration for major complications during treatment
+    } else if (event == 4) {
+      return(t.death)  # Duration for death
+    }
+}
+Tx1.time.fu1 <- function(Tx1.event.fu1) {
+  if (event == 1) {
+    return(t.fu1.full)  # Duration for completing the followup
+  } else if (event == 2) {
+    return(t.fu1.death)  # Duration for death during followup
+  }
+}
 
 ## Section 4: Discrete event simulation model ----
 
@@ -98,30 +124,63 @@ bsc.model <- trajectory() %>%
   
   # Initialization
   set_attribute(key="Alive", value=1) %>%                                                                          # define an attribute to check whether the patient is alive
-  
+  set_attribute(key="Tx1.Response", value=Tx1.Response) %>%                                                        # check whether patient responded to Tx1
+  set_attribute(key="Tx2.Response", value=Tx2.Response) %>%                                                        # check whether patient responded to Tx2
   # First-line treatment
-  set_attribute(key="Tx1.Event", value=function() Tx1.event()) %>%                                                 # select the event to happen in this treatment cycle          
-  branch(option=function() get_attribute(bsc.sim, "Tx1.Event"), continue=c(T, F),
+  set_attribute(key="Tx.event.cycle", value=function() Tx.event.cycle()) %>%                                                 # select the event to happen in this treatment cycle          
+  branch(option=function() get_attribute(bsc.sim, "Tx.event.cycle"), continue=c(T, T, T,F),
          
          # Event 1: Full cycle
          trajectory() %>%
-           set_attribute(key="Tx1.Time", value=function() Tx1.time(get_attribute(bsc.sim, "Tx1.Event"))) %>%       # determine how long the cycle will last
+           set_attribute(key="Tx.time.cycle", value=function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%       # determine how long the cycle will last
            seize(resource="Tx1", amount=1) %>%                                                                     # occupy a place in first-line treatment
-           timeout_from_attribute(key="Tx1.Time") %>%                                                              # stay in first-line treatment for the determined time
+           timeout_from_attribute(key="Tx.time.cycle") %>%                                                        # stay in first-line treatment for the determined time
            release(resource="Tx1", amount=1) %>%                                                                   # leave first-line treatment
-           rollback(amount=6, times=Inf),                                                                          # go back for another cycle (Hint: look at plot trajectory)
+           rollback(target=6, times=Inf),                                                                          # go back for another cycle (Hint: look at plot trajectory)
          
-         # Event 2: Death
+         # Event 2: minor complication
          trajectory() %>%
-           set_attribute(key="Tx1.Time", value=function() Tx1.time(get_attribute(bsc.sim, "Tx1.Event"))) %>%       # determine how long the cycle will last
+           set_attribute(key="Tx.time.cycle", value=function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%       # determine how long the cycle will last
            seize(resource="Tx1", amount=1) %>%                                                                     # occupy a place in first-line treatment
-           timeout_from_attribute(key="Tx1.Time") %>%                                                              # stay in first-line treatment for the determined time
+           timeout_from_attribute(key="Tx.time.cycle") %>%                                                              # stay in first-line treatment for the determined time
+           release(resource="Tx1", amount=1) %>%                                                                   # leave first-line treatment
+           rollback(target=6, times=Inf),
+         
+         # Event 3: major complication
+         trajectory() %>%
+           set_attribute(key="Tx.time.cycle", value=function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%       # determine how long the cycle will last
+           seize(resource="Tx1", amount=1) %>%                                                                     # occupy a place in first-line treatment
+           timeout_from_attribute(key="Tx.time.cycle") %>%                                                              # stay in first-line treatment for the determined time
+           release(resource="Tx1", amount=1) %>%                                                                   # leave first-line treatment
+           rollback(target=6, times=Inf),
+         
+         # Event 4: Death
+         trajectory() %>%
+           set_attribute(key="Tx.time.cycle", value=function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%       # determine how long the cycle will last
+           seize(resource="Tx1", amount=1) %>%                                                                     # occupy a place in first-line treatment
+           timeout_from_attribute(key="Tx.time.cycle") %>%                                                              # stay in first-line treatment for the determined time
            release(resource="Tx1", amount=1) %>%                                                                   # leave first-line treatment
            set_attribute(key="Alive", value=0)                                                                     # update that the patient has died
            
          
-  ) # branch first-line treatment
-
+  ) %>%
+  #Follow up 1
+  set_attribute(key="Tx1.event.fu1", value=function() Tx1.event.fu1()) %>%                                                 # select the event to happen in this treatment cycle          
+  branch(option=function() get_attribute(bsc.sim, "Tx1.event.fu1"), continue=c(T, F),
+         
+         #Event 1: survives follow-up
+         trajectory() %>%
+           set_attribute(key="Tx.time.fu1", value=function() Tx.time.fu1(get_attribute(bsc.sim, "Tx1.event.fu1"))) %>%       # determine how long the fu1 will last                                                                   
+           timeout_from_attribute(key="Tx.time.fu1") %>%                                                        # stay in follow-up treatment for the determined time                                                               
+         
+         #Event 2: dies in follow-up
+         trajectory() %>%
+           set_attribute(key="Tx.time.fu1", value=function() Tx.time.fu1(get_attribute(bsc.sim, "Tx1.event.fu1"))) %>%       # determine how long the fu1 will last                                                                   
+           timeout_from_attribute(key="Tx.time.fu1") %>%   
+           set_attribute(key="Alive", value = 0)
+         
+  )
+           
 # Visualize to check whether the defined model structure is ok
 plot(bsc.model);
   
