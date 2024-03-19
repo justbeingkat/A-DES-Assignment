@@ -31,7 +31,7 @@ load("trial_dataset.RData");
 
 # Define parameters
 # Patient characteristics 
-p.male <- 0.33;                               # probability of being male
+p.male <- 0.343;                               # probability of being male
 p.poor <- 0.20;                               # probability of a poor condition
 m.age.men <- 57.25063;                        # mean age for men
 sd.age.men <- 8.05432;                        # sd age for men
