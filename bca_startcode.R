@@ -55,7 +55,13 @@ t.death <- 15;    # average time of a cycle in which the patient dies
 p.minor <- 0.10;  # probability of minor complications in a cycle
 p.major <- 0.04;  # probability of major complications in a cycle
 p.death <- 0.03;  # probability of death in a cycle
-c.minor <- 487;
+
+p.minor.responsivepoorTx1 <- 0.0432526
+p.major.responsiveTx1 <- 0.03287197
+p.minor.notresponsiveTx1 <- 0.1777778
+p.major.notresponsiveTx1 <- 0.1196581
+
+c.minor <- 487; 
 c.major <- 14897;
 u.minor <- 0.051;
 u.major <- 0.089
@@ -91,12 +97,16 @@ p.death.followup <- 0.05; # probability of dying during first follow up
 # Functions for determining the event to happen
 
 # Function for defining the event during a cycle of treatment
-Tx.event.cycle <- function() {
-  
-  p.complete <- 1 - p.minor - p.major - p.death  
-  #select event during cycle
-  event <- sample(1:4, 1, prob = c(p.complete, p.minor, p.major, p.death))
-  return(event)
+Tx.event.cycle <- function(response) {
+  if (response == 1){
+    p.complete <- 1 - p.minor.responsiveTx1 - p.major.responsiveTx1 - p.death  
+    event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsiveTx1, p.major.responsiveTx1, p.death))
+    return(event)
+  } else if (response == 0){
+    p.complete <- 1 - p.minor.notresponsiveTx1 - p.major.notresponsiveTx1 - p.death  
+    event <- sample(1:4, 1, prob = c(p.complete, p.minor.notresponsiveTx1, p.major.notresponsiveTx1, p.death))
+    return(event)
+  }
 }
 #Function for defining the event during Follow up 1
 Tx1.event.fu1 <- function() {
@@ -157,7 +167,7 @@ bsc.model <- trajectory() %>%
   set_attribute(key = "Total.Costs", value = 0) %>%
   set_attribute(key = "Total.Utility", value = 0) %>%
   # First-line treatment
-  set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle()) %>%                                         # select the event to happen in this treatment cycle
+  set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx1.Response"))) %>%                                         # select the event to happen in this treatment cycle
   branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
          
          # Event 1: Full cycle
@@ -242,7 +252,7 @@ bsc.model <- trajectory() %>%
   ) %>%
   
   #Second-line treatment
-  set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle()) %>%                                         # select the event to happen in this treatment cycle
+  set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx2.Response"))) %>%                                         # select the event to happen in this treatment cycle
   branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
          
          # Event 1: Full cycle
