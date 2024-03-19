@@ -48,18 +48,38 @@ age.woman.d <- dnorm(x.w, m.age.women, sd.age.women);
 age.men.d <- dnorm(x.m, m.age.men, sd.age.men);
 
 # Tx general
-t.cycle <- 30;    # average time of a normal treatment cycle
-t.major <- 6;     # average time of a cycle in which major complications occur
-t.death <- 15;    # average time of a cycle in which the patient dies
+#t.cycle <- 30;    # average time of a normal treatment cycle
+#t.major <- 6;     # average time of a cycle in which major complications occur
+#t.death <- 15;    # average time of a cycle in which the patient dies
 
-p.minor <- 0.10;  # probability of minor complications in a cycle
-p.major <- 0.04;  # probability of major complications in a cycle
-p.death <- 0.03;  # probability of death in a cycle
+t.normal <- function(){return(rweibull(n = 1, shape = 16, scale = 31))} #Time to event step 1
+t.minor <- function(){return(rweibull(n = 1, shape = 13, scale = 31))} #Time to event step 2
+t.major <- function(){return(rweibull(n = 1, shape = 5, scale = 6))} #Time to event step 1
+t.death <- function(){return(rweibull(n = 1, shape = 2, scale = 18))} #Time to event step 2
 
-p.minor.responsivepoorTx1 <- 0.0432526
-p.major.responsiveTx1 <- 0.03287197
-p.minor.notresponsiveTx1 <- 0.1777778
-p.major.notresponsiveTx1 <- 0.1196581
+#p.minor <- 0.10;  # probability of minor complications in a cycle
+#p.major <- 0.04;  # probability of major complications in a cycle
+#p.death <- 0.03;  # probability of death in a cycle
+
+#responsive probabillities 
+p.minor.responsive.poor.Tx1 <-0.066666667
+p.minor.responsive.good.Tx1 <- 0.038934426
+
+p.major.responsive.poor.Tx1 <- 0.077777778
+p.major.responsive.good.Tx1 <-0.024590164
+
+p.death.responsive.poor.Tx1 <- 0.033333333
+p.death.responsive.good.Tx1 <- 0.028688525
+
+#not responsive probabillities
+p.minor.not.responsive.poor.Tx1 <-0.226950355
+p.minor.not.responsive.good.Tx1 <- 0.162162162
+
+p.major.not.responsive.poor.Tx1 <- 0.141843972
+p.major.not.responsive.good.Tx1 <-0.11261261
+
+p.death.not.responsive.poor.Tx1 <- 0.021276596
+p.death.not.responsive.good.Tx1 <- 0.031531532
 
 c.minor <- 487; 
 c.major <- 14897;
@@ -87,25 +107,42 @@ p.Tx2.yes.exp <- seq(from=0.39, to=0.47, by=0.02);                              
 p.Tx2.no.exp <- seq(from=0.87, to=0.31, by=-0.14);                                               # probability of effective Tx2 treatment when not responded to Tx1, dependent on cycles Tx1 
 
 # FU1 en FU2 specific
-t.fu1.full <- 63          # average time spent in the first follow up if the patient survives during follow up
-t.fu1.death <- 42         # average time spent in the first follow up if the patient dies during follow up
-t.fu2 <- 100              # average time spent in the second follow up after Tx2
+#t.fu1.full <- 63          # average time spent in the first follow up if the patient survives during follow up
+#t.fu1.death <- 42         # average time spent in the first follow up if the patient dies during follow up
+#t.fu2 <- 100              # average time spent in the second follow up after Tx2
 p.death.followup <- 0.05; # probability of dying during first follow up
+
+t.fu1.normal <- function(){rexp(1, rate = 0.0167)}
+t.fu1.dead <- function(){rexp(1, rate = 0.0273)}
+t.fu2 <- function(){rexp(1, rate=0.0072)}
 
 ## Section 3: Supportive functions ----
 
 # Functions for determining the event to happen
 
 # Function for defining the event during a cycle of treatment
-Tx.event.cycle <- function(response) {
+Tx.event.cycle <- function(response, poor) {
+  poor <- ifelse(runif(1) < p.poor, 1, 0)
   if (response == 1){
-    p.complete <- 1 - p.minor.responsiveTx1 - p.major.responsiveTx1 - p.death  
-    event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsiveTx1, p.major.responsiveTx1, p.death))
-    return(event)
+    if (poor == 1){
+      p.complete <- 1 - p.minor.responsive.poor.Tx1 - p.major.responsive.poor.Tx1 - p.death.responsive.poor.Tx1  
+      event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.poor.Tx1, p.major.responsive.poor.Tx1, p.death.responsive.poor.Tx1))
+      return(event)
+    } else if (poor == 0) {
+      p.complete <- 1 - p.minor.responsive.good.Tx1 - p.major.responsive.good.Tx1 - p.death.responsive.good.Tx1  
+      event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.good.Tx1, p.major.responsive.good.Tx1, p.death.responsive.good.Tx1))
+      return(event)
+    }
   } else if (response == 0){
-    p.complete <- 1 - p.minor.notresponsiveTx1 - p.major.notresponsiveTx1 - p.death  
-    event <- sample(1:4, 1, prob = c(p.complete, p.minor.notresponsiveTx1, p.major.notresponsiveTx1, p.death))
-    return(event)
+    if (poor == 1){
+      p.complete <- 1 - p.minor.not.responsive.poor.Tx1 - p.major.not.responsive.poor.Tx1 - p.death.not.responsive.poor.Tx1  
+      event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.poor.Tx1, p.major.not.responsive.poor.Tx1, p.death.not.responsive.poor.Tx1))
+      return(event)
+    } else if (poor == 0) {
+      p.complete <- 1 - p.minor.not.responsive.good.Tx1 - p.major.not.responsive.good.Tx1 - p.death.not.responsive.good.Tx1  
+      event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.good.Tx1, p.major.not.responsive.good.Tx1, p.death.not.responsive.good.Tx1))
+      return(event)
+    }
   }
 }
 #Function for defining the event during Follow up 1
@@ -122,9 +159,10 @@ Tx1.event.fu1 <- function() {
 # Function for defining the time spent on a cycle
 Tx.time.cycle <- function(event) {
   if (event == 1) {
-    return(t.cycle)  # Duration for completing the cycle without any complication
+    
+    return(t.normal)  # Duration for completing the cycle without any complication
   } else if (event == 2) {
-    return(t.cycle)  # Duration for minor complications
+    return(t.)  # Duration for minor complications
   } else if (event == 3) {
     return(t.major)  # Duration for major complications during treatment
   } else if (event == 4) {
@@ -163,7 +201,7 @@ bsc.model <- trajectory() %>%
   # Initialization
   set_attribute(key = "Alive", value = 1) %>%                                                                           # define an attribute to check whether the patient is alive
   set_attribute(key = "Tx1.Response", value = function() Tx1.Response()) %>%                                                          # check whether the patient responded to Tx1
-  set_attribute(key = "Tx2.Response", value = function() Tx2.Response(Tx1.Response())) %>%                                                          # check whether the patient responded to Tx2
+  set_attribute(key = "Tx2.Response", value = function() Tx2.Response(Tx1.Response())) %>%       # check whether the patient responded to Tx2
   set_attribute(key = "Total.Costs", value = 0) %>%
   set_attribute(key = "Total.Utility", value = 0) %>%
   # First-line treatment
@@ -172,7 +210,7 @@ bsc.model <- trajectory() %>%
          
          # Event 1: Full cycle
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.normal()) %>%  # determine how long the cycle will last
            seize(resource = "Tx1", amount = 1) %>%         
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
@@ -187,7 +225,7 @@ bsc.model <- trajectory() %>%
          
          # Event 2: Minor complication
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.minor()) %>%  # determine how long the cycle will last
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
@@ -203,7 +241,7 @@ bsc.model <- trajectory() %>%
          
          # Event 3: Major complication
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.major()) %>%  # determine how long the cycle will last
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
@@ -219,7 +257,7 @@ bsc.model <- trajectory() %>%
          
          # Event 4: Death
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.death()) %>%  # determine how long the cycle will last
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
@@ -239,13 +277,13 @@ bsc.model <- trajectory() %>%
          
          # Event 1: Survives follow-up
          trajectory() %>%
-           set_attribute(key = "Tx.time.fu1", value = function() Tx1.time.fu1(get_attribute(bsc.sim, "Tx1.event.fu1"))) %>%  # determine how long the follow-up will last
+           set_attribute(key = "Tx.time.fu1", value = function() t.fu1.normal()) %>%  # determine how long the follow-up will last
            timeout_from_attribute(key = "Tx.time.fu1") %>%
            set_attribute(keys = "Total.Utility", mod = "*", values = 1.1),                                                                # stay in follow-up treatment for the determined time
          
          # Event 2: Dies in follow-up
          trajectory() %>%
-           set_attribute(key = "Tx.time.fu1", value = function() Tx1.time.fu1(get_attribute(bsc.sim, "Tx1.event.fu1"))) %>%  # determine how long the follow-up will last
+           set_attribute(key = "Tx.time.fu1", value = function() t.fu1.dead()) %>%  # determine how long the follow-up will last
            timeout_from_attribute(key = "Tx.time.fu1") %>%                                                             # stay in follow-up treatment for the determined time
            set_attribute(keys = "Total.Utility", mod = "*", values = 1.1) %>%                                                              # stay in follow-up treatment for the determined time
            set_attribute(key = "Alive", value = 0)
@@ -257,7 +295,7 @@ bsc.model <- trajectory() %>%
          
          # Event 1: Full cycle
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.normal()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
@@ -272,7 +310,7 @@ bsc.model <- trajectory() %>%
          
          # Event 2: Minor complication
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.minor()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
@@ -288,7 +326,7 @@ bsc.model <- trajectory() %>%
          
          # Event 3: Major complication
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.major()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
@@ -304,7 +342,7 @@ bsc.model <- trajectory() %>%
          
          # Event 4: Death
          trajectory() %>%
-           set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
+           set_attribute(key = "Tx.time.cycle", value = function() t.death()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
@@ -319,7 +357,7 @@ bsc.model <- trajectory() %>%
   ) %>%
   
   # Follow up 2
-  set_attribute(key = "Tx.time.fu2", value = t.fu2) %>%   
+  set_attribute(key = "Tx.time.fu2", value = function() t.fu2()) %>%   
   timeout_from_attribute(key = "Tx.time.fu2") %>%   
   set_attribute(keys = "Total.Utility", mod = "*", values = 1.1) %>%                                                              # stay in follow-up treatment for the determined time
   set_attribute(key = "Alive", value = 0)
@@ -347,5 +385,5 @@ bsc.sim %>%
 
 # Get the outcomes for the monitored attributes
 bsc.out <- get_mon_attributes(bsc.sim);             # retrieve the monitor object
-getSingleAttribute("Total.Utility", bsc.out);               # get patient-level outcomes for the attribute of interest
-View(getMultipleAttributes(c("Total.Utility"), bsc.out));   # get outcomes for multiple outcomes at the same time
+getSingleAttribute("Total.Costs", bsc.out);               # get patient-level outcomes for the attribute of interest
+View(getMultipleAttributes(c("Total.Costs"), bsc.out));   # get outcomes for multiple outcomes at the same time
