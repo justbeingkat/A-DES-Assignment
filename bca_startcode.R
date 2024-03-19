@@ -45,6 +45,8 @@ t.death <- 15;    # average time of a cycle in which the patient dies
 p.minor <- 0.10;  # probability of minor complications in a cycle
 p.major <- 0.04;  # probability of major complications in a cycle
 p.death <- 0.03;  # probability of death in a cycle
+c.minor <- 487;
+c.major <- 14897;
 
 # Tx1 specific
 c.Tx1.cycle <- 351;   # costs of a cycle of Tx1
@@ -150,7 +152,7 @@ bsc.model <- trajectory() %>%
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
            set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
            set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
+           set_attribute(keys = c("Tx1.total.costs", "Tx1.total.costs"), mod = "+", values = c(c.Tx1.cycle, c.minor)) %>% 
            rollback(target = 6, times = 5),
          
          # Event 3: Major complication
@@ -161,7 +163,7 @@ bsc.model <- trajectory() %>%
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
            set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
            set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
+           set_attribute(keys = c("Tx1.total.costs", "Tx1.total.costs"), mod = "+", values = c(c.Tx1.cycle, c.major)) %>% 
            rollback(target = 6, times = 5),
          
          # Event 4: Death
@@ -215,7 +217,7 @@ bsc.model <- trajectory() %>%
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
            set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
            set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
+           set_attribute(keys = c("Tx2.total.costs", "Tx2.total.costs"), mod = "+", values = c(c.Tx2.cycle, c.minor)) %>% 
            rollback(target = 6, times = 5),
          
          # Event 3: Major complication
@@ -226,7 +228,7 @@ bsc.model <- trajectory() %>%
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
            set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
            set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
+           set_attribute(keys = c("Tx2.total.costs", "Tx2.total.costs"), mod = "+", values = c(c.Tx2.cycle, c.major)) %>% 
            rollback(target = 6, times = 5),
          
          # Event 4: Death
@@ -269,6 +271,6 @@ bsc.sim %>%
 
 # Get the outcomes for the monitored attributes
 bsc.out <- get_mon_attributes(bsc.sim);             # retrieve the monitor object
-getSingleAttribute("Alive", bsc.out);               # get patient-level outcomes for the attribute of interest
-View(getMultipleAttributes(c("Alive"), bsc.out));   # get outcomes for multiple outcomes at the same time
+getSingleAttribute("Tx1.total.costs", bsc.out);               # get patient-level outcomes for the attribute of interest
+View(getMultipleAttributes(c("Tx1.total.costs"), bsc.out));   # get outcomes for multiple outcomes at the same time
 
