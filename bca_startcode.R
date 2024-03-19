@@ -15,6 +15,8 @@ rm(list=ls()); gc();
 library(simmer);
 library(simmer.plot);
 library(fitdistrplus);
+library(dplyr); 
+library(ggplot2); 
 
 # Set the working directory
 #setwd("~/A-DES-Assignment");
@@ -31,12 +33,20 @@ load("trial_dataset.RData");
 
 # Define parameters
 # Patient characteristics 
-p.male <- 0.343;                               # probability of being male
-p.poor <- 0.20;                               # probability of a poor condition
+p.male <- 0.34;                               # probability of being male
+p.women <- 1 - 0.34; 
+p.poor <- 0.1986242;                               # probability of a poor condition
 m.age.men <- 57.25063;                        # mean age for men
 sd.age.men <- 8.05432;                        # sd age for men
 m.age.women <- 65.63482;                      # mean age for women
 sd.age.women <- 13.27633;                     # sd age for women
+
+x.w <-seq(20,100, by= 1)
+x.m <-seq(20,100, by= 1)
+
+age.woman.d <- dnorm(x.w, m.age.women, sd.age.women); 
+age.men.d <- dnorm(x.m, m.age.men, sd.age.men);
+
 # Tx general
 t.cycle <- 30;    # average time of a normal treatment cycle
 t.major <- 6;     # average time of a cycle in which major complications occur
@@ -58,14 +68,13 @@ u.Tx1 <- 0.55/365;    # utility per day when on treatment Tx1
 p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
 p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
 
-Tx1.Response <- 1 #1 = Responder, 0 = not a Responder
-
 # Tx2 specific
 c.Tx2.cycle <- 4141;  # costs of a cycle of Tx2
 c.Tx2.day <- 19;      # additional dayly costs when on treatment Tx2
 u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx1
 
-Tx2.Response <- 1 #1 = Responder, 0 = not a Responder
+p.Tx2.respondedTx1 <- 0.3493
+p.Tx2.notrespondedTx1 <- 0.6771
 
 # p.Tx2.yes.exp and p.Tx2.no.exp are provided for step 2.4
 p.Tx2.yes.exp <- seq(from=0.39, to=0.47, by=0.02);                                               # probability of effective Tx2 treatment when responded to Tx1, dependent on cycles Tx1 
@@ -120,7 +129,22 @@ Tx1.time.fu1 <- function(event) {
     return(t.fu1.death)  # Duration for death during followup
   }
 }
+Tx1.Response <- function(poor) {
+  poor <- ifelse(runif(1) < p.poor, 1, 0)
+  if (poor == 0){
+    return(ifelse(runif(1) < p.Tx1.good, 1, 0))
+  } else if (poor == 1){
+    return(ifelse(runif(1) < p.Tx1.poor, 1, 0))
+  }
+}
 
+Tx2.Response <- function(response) {
+  if (response == 1){
+    return(ifelse(runif(1) < p.Tx2.respondedTx1, 1, 0))
+  } else if (response == 0){
+    return(ifelse(runif(1) < p.Tx2.notrespondedTx1, 1, 0))
+  }
+}
 ## Section 4: Discrete event simulation model ----
 
 # Define the model structure for the current practice, i.e., best standard care (BSC)
@@ -128,8 +152,8 @@ bsc.model <- trajectory() %>%
   
   # Initialization
   set_attribute(key = "Alive", value = 1) %>%                                                                           # define an attribute to check whether the patient is alive
-  set_attribute(key = "Tx1.Response", value = Tx1.Response) %>%                                                          # check whether the patient responded to Tx1
-  set_attribute(key = "Tx2.Response", value = Tx2.Response) %>%                                                          # check whether the patient responded to Tx2
+  set_attribute(key = "Tx1.Response", value = function() Tx1.Response()) %>%                                                          # check whether the patient responded to Tx1
+  set_attribute(key = "Tx2.Response", value = function() Tx2.Response(Tx1.Response())) %>%                                                          # check whether the patient responded to Tx2
   set_attribute(key = "Total.Costs", value = 0) %>%
   set_attribute(key = "Total.Utility", value = 0) %>%
   # First-line treatment
@@ -315,4 +339,3 @@ bsc.sim %>%
 bsc.out <- get_mon_attributes(bsc.sim);             # retrieve the monitor object
 getSingleAttribute("Total.Utility", bsc.out);               # get patient-level outcomes for the attribute of interest
 View(getMultipleAttributes(c("Total.Utility"), bsc.out));   # get outcomes for multiple outcomes at the same time
-
