@@ -47,25 +47,21 @@ p.major <- 0.04;  # probability of major complications in a cycle
 p.death <- 0.03;  # probability of death in a cycle
 
 # Tx1 specific
-c.Tx1.cycle <- 375;   # costs of a cycle of Tx1
-c.Tx1.day <- 8;       # additional daily costs when on treatment Tx1
+c.Tx1.cycle <- 351;   # costs of a cycle of Tx1
+c.Tx1.day <- 8.50;       # additional daily costs when on treatment Tx1
 u.Tx1 <- 0.55/365;    # utility per day when on treatment Tx1
 
 p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
 p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
 
 Tx1.Response <- 1 #1 = Responder, 0 = not a Responder
-Tx1.Cycle.Cost <- 351
-Tx1.Day.Cost <- 8.50
 
 # Tx2 specific
-c.Tx2.cycle <- 4000;  # costs of a cycle of Tx2
-c.Tx2.day <- 15;      # additional dayly costs when on treatment Tx2
+c.Tx2.cycle <- 4141;  # costs of a cycle of Tx2
+c.Tx2.day <- 19;      # additional dayly costs when on treatment Tx2
 u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx1
 
 Tx2.Response <- 1 #1 = Responder, 0 = not a Responder
-Tx2.Cycle.Cost <-4141
-Tx2.Day.Cost <- 19
 
 # p.Tx2.yes.exp and p.Tx2.no.exp are provided for step 2.4
 p.Tx2.yes.exp <- seq(from=0.39, to=0.47, by=0.02);                                               # probability of effective Tx2 treatment when responded to Tx1, dependent on cycles Tx1 
@@ -138,11 +134,13 @@ bsc.model <- trajectory() %>%
          # Event 1: Full cycle
          trajectory() %>%
            set_attribute(key = "Tx.time.cycle", value = function() Tx.time.cycle(get_attribute(bsc.sim, "Tx.event.cycle"))) %>%  # determine how long the cycle will last
-           seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
+           seize(resource = "Tx1", amount = 1) %>%         
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-           #          set_attribute(key = "Total Cost", value = Tx1.Cycle.Cost + Tx1.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),                                                                          # go back for another cycle
+           set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
+           set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
+           rollback(target = 6, times = 5),                                                                          # go back for another cycle
          
          # Event 2: Minor complication
          trajectory() %>%
@@ -150,8 +148,10 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-           #      set_attribute(key = "Total Cost", value = Tx1.Cycle.Cost + Tx1.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),
+           set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
+           set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
+           rollback(target = 6, times = 5),
          
          # Event 3: Major complication
          trajectory() %>%
@@ -159,8 +159,10 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-           #       set_attribute(key = "Total Cost", value = Tx1.Cycle.Cost + Tx1.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),
+           set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
+           set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
+           rollback(target = 6, times = 5),
          
          # Event 4: Death
          trajectory() %>%
@@ -168,7 +170,9 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
            release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-           #      set_attribute(key = "Total Cost", value = Tx1.Cycle.Cost + Tx1.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
+           set_attribute(key = "Tx1.total.costs", value = c.Tx1.day) %>%
+           set_attribute(keys = "Tx1.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx1.total.costs", mod = "+", values = c.Tx1.cycle) %>% 
            set_attribute(key = "Alive", value = 0)                                                                     # update that the patient has died
   ) %>%
   
@@ -198,8 +202,10 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-           #          set_attribute(key = "Total Cost", value = Tx2.Cycle.Cost + Tx2.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),                                                                          # go back for another cycle
+           set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
+           set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
+           rollback(target = 6, times = 5),                                                                          # go back for another cycle
          
          # Event 2: Minor complication
          trajectory() %>%
@@ -207,8 +213,10 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-           #      set_attribute(key = "Total Cost", value = Tx2.Cycle.Cost + Tx2.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),
+           set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
+           set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
+           rollback(target = 6, times = 5),
          
          # Event 3: Major complication
          trajectory() %>%
@@ -216,8 +224,10 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-           #       set_attribute(key = "Total Cost", value = Tx2.Cycle.Cost + Tx2.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
-           rollback(target = 6, times = Inf),
+           set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
+           set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
+           rollback(target = 6, times = 5),
          
          # Event 4: Death
          trajectory() %>%
@@ -225,7 +235,9 @@ bsc.model <- trajectory() %>%
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
            release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-           #      set_attribute(key = "Total Cost", value = Tx2.Cycle.Cost + Tx2.Day.Cost* (get_attribute(bsc.sim, "Tx.time.cycle"))) %>%  #determine the costs
+           set_attribute(key = "Tx2.total.costs", value = c.Tx2.day) %>%
+           set_attribute(keys = "Tx2.total.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
+           set_attribute(keys = "Tx2.total.costs", mod = "+", values = c.Tx2.cycle) %>% 
            set_attribute(key = "Alive", value = 0)                                                                     # update that the patient has died
   ) %>%
   
@@ -248,6 +260,7 @@ mon.patients <- 2;    # level of monitoring (see add_generator)
 # Define simulation for the best standard care (bsc)
 bsc.sim <- simmer() %>%
   add_resource(name="Tx1", capacity=Inf, mon=F) %>%
+  add_resource(name="Tx2", capacity=Inf, mon=F) %>%
   add_generator(name_prefix="Patient", trajectory=bsc.model, distribution=at(rep(x=0, times=n.patients)), mon=mon.patients)
 
 # Run the BSC simulation
@@ -258,3 +271,4 @@ bsc.sim %>%
 bsc.out <- get_mon_attributes(bsc.sim);             # retrieve the monitor object
 getSingleAttribute("Alive", bsc.out);               # get patient-level outcomes for the attribute of interest
 View(getMultipleAttributes(c("Alive"), bsc.out));   # get outcomes for multiple outcomes at the same time
+
