@@ -89,7 +89,9 @@ u.major <- 0.089
 # Tx1 specific
 c.Tx1.cycle <- 351;   # costs of a cycle of Tx1
 c.Tx1.day <- 8.50;       # additional daily costs when on treatment Tx1
-u.Tx1 <- 0.55/365;    # utility per day when on treatment Tx1
+u.Tx1 <- 0.55/36;    # utility per day when on treatment Tx1
+u.Tx1.Response <- function(){return(rnorm(n = 1, mean = 0.4695, sd = 0.1214))}; 
+u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.46423, sd = 0.14172))}; 
 
 p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
 p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
@@ -97,7 +99,10 @@ p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);               
 # Tx2 specific
 c.Tx2.cycle <- 4141;  # costs of a cycle of Tx2
 c.Tx2.day <- 19;      # additional dayly costs when on treatment Tx2
-u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx1
+u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx2
+
+u.Tx2.Response <- function(){return(rnorm(n = 1, mean = 0.53106, sd = 0.1316209))};
+u.Tx2.NoResponse <- function(){return(rnorm(n = 1, mean = 0.54499, sd = 0.113477))};
 
 p.Tx2.respondedTx1 <- 0.3493
 p.Tx2.notrespondedTx1 <- 0.6771
@@ -154,6 +159,21 @@ Tx1.event.fu1 <- function() {
   return(event)
 }
 
+Tx1.utility <- function(response) {
+  if (response == 1){
+    return (u.Tx1.Response())
+  } else if (response == 0){
+    return(u.Tx1.NoResponse())
+  }
+}
+
+Tx2.utility <- function(response) {
+  if (response == 1){
+    return (u.Tx2.Response())
+  } else if (response == 0){
+    return(u.Tx2.NoResponse())
+  }
+}
 # Functions for determining the time-to-events
 
 # Function for defining the time spent on a cycle
@@ -194,7 +214,6 @@ Tx2.Response <- function(response) {
   }
 }
 ## Section 4: Discrete event simulation model ----
-
 # Define the model structure for the current practice, i.e., best standard care (BSC)
 bsc.model <- trajectory() %>%
   
@@ -218,9 +237,10 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx1) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
+           #set_attribute(keys = "Total.Response", values = function() get_attribute(bsc.sim, "Tx1.Response")) %>%
            rollback(target = 13, times = 5),                                                                          # go back for another cycle
          
          # Event 2: Minor complication
@@ -233,8 +253,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.minor)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx1) %>%
-           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
            rollback(target = 14, times = 5),
@@ -249,8 +268,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.major)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx1) %>%
-           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "+", values = -u.major) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
            rollback(target = 14, times = 5),
@@ -265,8 +283,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx1) %>%
-           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
            set_attribute(key = "Alive", value = 0)                                                                     # update that the patient has died
   ) %>%
@@ -303,9 +320,9 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx2) %>%
-           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
+           #set_attribute(keys = "Total.Response.Tx2", values = function() get_attribute(bsc.sim, "Tx2.Response")) %>%
            rollback(target = 13, times = 5),                                                                          # go back for another cycle
          
          # Event 2: Minor complication
@@ -318,7 +335,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.minor)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx2) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
@@ -334,7 +351,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.major)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx2) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "+", values = -u.major) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
@@ -350,7 +367,7 @@ bsc.model <- trajectory() %>%
            set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
            set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
            set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
-           set_attribute(key = "cycle.utility", value = u.Tx2) %>%
+           set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
            set_attribute(key = "Alive", value = 0)                                                                     # update that the patient has died
@@ -386,4 +403,7 @@ bsc.sim %>%
 # Get the outcomes for the monitored attributes
 bsc.out <- get_mon_attributes(bsc.sim);             # retrieve the monitor object
 getSingleAttribute("Total.Costs", bsc.out);               # get patient-level outcomes for the attribute of interest
-View(getMultipleAttributes(c("Total.Costs"), bsc.out));   # get outcomes for multiple outcomes at the same time
+View(getMultipleAttributes(c("Total.Costs", "Total.Utility", "Tx1.Response"), bsc.out));   # get outcomes for multiple outcomes at the same 
+
+data.frame <- getMultipleAttributes(c("Total.Utility", "Tx1.Response"), bsc.out) 
+data.frame2<- getMultipleAttributes(c("Total.Utility", "Tx2.Response"), bsc.out)
