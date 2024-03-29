@@ -106,9 +106,11 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     
     #New normal distribution function 
     Response.mean <- 0.676
+    Response.sd <- 0.461
     NoResponse.mean <- 0.969
-    Tx1.C1.Dx.Test1.Response <- rnorm(1, 0.676, 0.461)
-    Tx1.C1.Dx.Test1.NoResponse <- rnorm(1, 0.969, 0.469)
+    NoResponse.sd <- 0.469
+    Tx1.C1.Dx.Test1.Response <- function(){return(rnorm(1, 0.676, 0.461))};
+    Tx1.C1.Dx.Test1.NoResponse <- function(){return(rnorm(1, 0.969, 0.469))};
     
     p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
     p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
@@ -229,11 +231,11 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     get.Tx1.event.exp <- function(response){
       if (response == 1){
         test.result <- Tx1.C1.Dx.Test1.Response()
-        event <- ifelse(test.result < Response.mean, 0, 1)
+        event <- ifelse(test.result < Response.mean + Response.sd, 0, 1)
         return(event)
       } else if (response == 0) {
         test.result <- Tx1.C1.Dx.Test1.NoResponse()
-        event <- ifelse(test.result < NoResponse.mean, 0, 1)
+        event <- ifelse(test.result < NoResponse.mean + Response.sd, 0, 1)
         return(event)
       }
     }
@@ -419,7 +421,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
       set_attribute(key = "Total.Utility", value = 0) %>%
       # First-line treatment
       set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx1.Response"))) %>%         # select the event to happen in this treatment cycle
-      set_attribute(key = "Tx.test.event", value = function() get.Tx1.event.exp(get_attribute(bsc.sim, "Tx1.Response"))) %>%
+      set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(bsc.sim, "Tx1.Response"))) %>%
       branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
              
              # Event 1: Full cycle
