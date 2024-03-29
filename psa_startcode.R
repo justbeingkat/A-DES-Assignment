@@ -423,6 +423,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
       set_attribute(key = "Total.Utility", value = 0) %>%
       set_attribute(key = "Cycle Count Tx1", value = 1) %>%
       # First-line treatment
+      set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(bsc.sim, "Tx1.Response"),get_attribute(exp.sim, "Cycle Count Tx1"))) %>%
       branch(option = function() get_attribute(bsc.sim, "Tx.test.decision"), continue = c(T, T),
              trajectory()%>%
                set_attribute(key = "Tx1.Response", value = 0) %>%
