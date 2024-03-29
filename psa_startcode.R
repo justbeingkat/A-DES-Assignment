@@ -423,13 +423,12 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
       set_attribute(key = "Total.Utility", value = 0) %>%
       set_attribute(key = "Cycle Count Tx1", value = 1) %>%
       # First-line treatment
-      set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(exp.sim, "Tx1.Response"),get_attribute(exp.sim, "Cycle Count Tx1"))) %>%
-      branch(option = function() get_attribute(exp.sim, "Tx.test.decision"), continue = c(T, T),
+      branch(option = function() get_attribute(bsc.sim, "Tx.test.decision"), continue = c(T, T),
              trajectory()%>%
-               
-            trajectory()%>%
-              set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(exp.sim,"Tx1.Response"))) %>%         # select the event to happen in this treatment cycle 
-              branch(option = function() get_attribute(exp.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
+               set_attribute(key = "Tx1.Response", value = 0) %>%
+               trajectory()%>%
+               set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx1.Response"))) %>%         # select the event to happen in this treatment cycle 
+               branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
                       
                       # Event 1: Full cycle
                       trajectory() %>%
@@ -439,13 +438,13 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
-                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
+                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
                         set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle) %>% 
-                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
-                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%
-                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
-                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-                        rollback(target = 13, times = 5),                                                                          # go back for another cycle
+                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
+                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%
+                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
+                        rollback(target = 15, times = 5),                                                                          # go back for another cycle
                       
                       # Event 2: Minor complication
                       trajectory() %>%
@@ -455,14 +454,14 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
-                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
+                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
                         set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.minor)) %>% 
-                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
-                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%           
-                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
+                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
+                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           
+                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
                         set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
-                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-                        rollback(target = 14, times = 5),
+                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
+                        rollback(target = 16, times = 5),
                       
                       # Event 3: Major complication
                       trajectory() %>%
@@ -472,14 +471,14 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
-                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
+                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
                         set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.major)) %>% 
-                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
-                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%         
-                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
+                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
+                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%         
+                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
                         set_attribute(keys = "cycle.utility", mod = "+", values = -u.major) %>%
-                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-                        rollback(target = 14, times = 5),
+                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
+                        rollback(target = 16, times = 5),
                       
                       # Event 4: Death
                       trajectory() %>%
@@ -489,15 +488,14 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
-                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
+                        set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
                         set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle)) %>% 
-                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
-                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%           
-                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
-                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
+                        set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
+                        set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           
+                        set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
+                        set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
                         set_attribute(key = "Alive", value = 0)                                                                     # update that the patient has died
-               ))
-       %>%
+               )) %>%
       
       # Follow up 1
       set_attribute(key = "Tx1.event.fu1", value = function() Tx1.event.fu1()) %>%                                            # select the event to happen in this treatment cycle
