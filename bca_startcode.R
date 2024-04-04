@@ -226,11 +226,11 @@ Tx2.Response <- function(response) {
 get.Tx1.event.exp <- function(response, cycle){
   if(cycle == 0){
     return(2)
-  }else if (response == 2){
+  }else if (response == 1){
     test.result <- Tx1.C1.Dx.Test1.Response()
     event <- ifelse(test.result < Response.mean + Response.sd, 1, 2)
     return(event)
-  } else if (response == 1) {
+  } else if (response == 0) {
     test.result <- Tx1.C1.Dx.Test1.NoResponse()
     event <- ifelse(test.result < NoResponse.mean + Response.sd, 1, 2)
     return(event)
@@ -251,13 +251,14 @@ bsc.model <- trajectory() %>%
   set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(bsc.sim, "Tx1.Response"),get_attribute(bsc.sim, "Cycle Count Tx1"))) %>%
   branch(option = function() get_attribute(bsc.sim, "Tx.test.decision"), continue = c(T, T),
          trajectory()%>%
-           set_attribute(key = "Tx1.Response", value = 0),
+           log_("Bad Score"),
          trajectory()%>%
            set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx1.Response"))) %>%         # select the event to happen in this treatment cycle 
            branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
                   
                   # Event 1: Full cycle
                   trajectory() %>%
+                    log_("Full Cycle") %>%
                     set_attribute(keys = "Cycle Count Tx1", mod = "+", values = 1) %>%
                     set_attribute(key = "Tx.time.cycle", value = function() t.normal()) %>%  # determine how long the cycle will last
                     seize(resource = "Tx1", amount = 1) %>%         
@@ -270,9 +271,11 @@ bsc.model <- trajectory() %>%
                     set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%
                     set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
                     set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
-                    rollback(target = 14),
+                    rollback(target = 17, times=5),
+                    
                   # Event 2: Minor complication
                   trajectory() %>%
+                    log_("Minor") %>%
                     set_attribute(keys = "Cycle Count Tx1", mod = "+", values = 1) %>%
                     set_attribute(key = "Tx.time.cycle", value = function() t.minor()) %>%  # determine how long the cycle will last
                     seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
@@ -286,7 +289,7 @@ bsc.model <- trajectory() %>%
                     set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
                     set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
                     set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(bsc.sim, "cycle.utility")) %>%
-                    rollback(target = 15),
+                    rollback(target = 18, times = 5),
                   
                   # Event 3: Major complication
                   trajectory() %>%
