@@ -206,7 +206,7 @@ Tx1.time.fu1 <- function(event) {
     return(t.fu1.death)  # Duration for death during followup
   }
 }
-Tx1.Response <- function(poor) {
+Tx1.Response <- function() {
   poor <- ifelse(runif(1) < p.poor, 1, 0)
   if (poor == 0){
     return(ifelse(runif(1) < p.Tx1.good, 1, 0))
@@ -239,9 +239,9 @@ get.Tx1.event.exp <- function(response, cycle){
 
 Tx2.Response.exp <- function(cycle, tx1response){
   if(tx1response == 1){
-    return(p.Tx2.yes.exp[cycle])
+    ifelse(runif(1)<p.Tx2.yes.exp[cycle], 1, 0)
   }else if (tx1response == 2){
-    return(p.Tx2.no.exp[cycle])
+    ifelse(runif(1)<p.Tx2.no.exp[cycle], 1, 0)
   }
 }
 ## Section 4: Discrete event simulation model ----
@@ -353,7 +353,7 @@ bsc.model <- trajectory() %>%
   ) %>%
   
   #Second-line treatment
-  set_attribute(key = "Tx2.Response", value = function() Tx2.Response.exp(get_attribute(bsc.sim, "Cycle Count Tx1"), get_attribute(bsc.sim, "Tx1.Response"))) %>%
+  set_attribute(key = "Tx2.Response", value = function() Tx2.Response.exp(get_attribute(bsc.sim, "Cycle Count Tx1"),get_attribute(bsc.sim, "Tx1.Response"))) %>%
   set_attribute(key = "Tx.event.cycle", value = function() Tx.event.cycle(get_attribute(bsc.sim,"Tx2.Response"))) %>%                                         # select the event to happen in this treatment cycle
   branch(option = function() get_attribute(bsc.sim, "Tx.event.cycle"), continue = c(T, T, T, F),
          
