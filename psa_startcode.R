@@ -66,19 +66,10 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     age.woman.d <- dnorm(x.w, m.age.women, sd.age.women); 
     age.men.d <- dnorm(x.m, m.age.men, sd.age.men);
     
-    # Tx general
-    #t.cycle <- 30;    # average time of a normal treatment cycle
-    #t.major <- 6;     # average time of a cycle in which major complications occur
-    #t.death <- 15;    # average time of a cycle in which the patient dies
-    
     t.normal <- function(){return(rweibull(n = 1, shape = 16, scale = 31))} #Time to event step 1
     t.minor <- function(){return(rweibull(n = 1, shape = 13, scale = 31))} #Time to event step 2
     t.major <- function(){return(rweibull(n = 1, shape = 5, scale = 6))} #Time to event step 1
     t.death <- function(){return(rweibull(n = 1, shape = 2, scale = 18))} #Time to event step 2
-    
-    #p.minor <- 0.10;  # probability of minor complications in a cycle
-    #p.major <- 0.04;  # probability of major complications in a cycle
-    #p.death <- 0.03;  # probability of death in a cycle
     
     #responsive probabillities 
     p.minor.responsive.poor.Tx1 <-0.066666667
@@ -106,9 +97,8 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     u.major <- 0.089
     
     # Tx1 specific
-    c.Tx1.cycle <- 351;   # costs of a cycle of Tx1
-    c.Tx1.day <- 8.50;       # additional daily costs when on treatment Tx1
-    u.Tx1 <- 0.55/36;    # utility per day when on treatment Tx1
+    c.Tx1.cycle <- function(){return(rnorm(n = 1, mean = 351, sd = 26))};   # costs of a cycle of Tx1
+    c.Tx1.day <- function(){return(rnorm(n = 1, mean = 8.50, sd = 1.3))};   # costs per day of Tx1
     u.Tx1.Response <- function(){return(rnorm(n = 1, mean = 0.4695, sd = 0.1214))}; 
     u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.46423, sd = 0.14172))}; 
     
@@ -116,10 +106,8 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
     
     # Tx2 specific
-    c.Tx2.cycle <- 4141;  # costs of a cycle of Tx2
-    c.Tx2.day <- 19;      # additional dayly costs when on treatment Tx2
-    u.Tx2 <- 0.5/365;     # utility per day when on treatment Tx2
-    
+    c.Tx2.cycle <- function(){return(rnorm(n = 1, mean = 4141, sd = 461))}; # costs of a cycle of Tx2
+    c.Tx2.day <- function(){return(rnorm(n = 1, mean = 19, sd = 2))};   # additional daily costs when on treatment Tx2
     u.Tx2.Response <- function(){return(rnorm(n = 1, mean = 0.53106, sd = 0.1316209))};
     u.Tx2.NoResponse <- function(){return(rnorm(n = 1, mean = 0.54499, sd = 0.113477))};
     p.Tx2.respondedTx1 <- 0.3493
@@ -138,11 +126,6 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     Tx1.C1.Dx.Test1.NoResponse <- function(){return(rnorm(1, 0.969, 0.469))};
     Tx1.C1.Dx.Test1 <- function(){return(rnorm(1, 0.515, 1.034053))};
     
-    
-    # FU1 en FU2 specific
-    #t.fu1.full <- 63          # average time spent in the first follow up if the patient survives during follow up
-    #t.fu1.death <- 42         # average time spent in the first follow up if the patient dies during follow up
-    #t.fu2 <- 100              # average time spent in the second follow up after Tx2
     p.death.followup <- 0.05; # probability of dying during first follow up
     
     t.fu1.normal <- function(){rexp(1, rate = 0.0167)}
@@ -286,9 +269,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx1", amount = 1) %>%         
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle) %>% 
+               set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle()) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -301,9 +284,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -317,9 +300,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%         
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -333,9 +316,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle)) %>% 
+               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -371,9 +354,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
+               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -386,9 +369,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -402,9 +385,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -418,9 +401,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
+               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>% 
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -462,9 +445,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         seize(resource = "Tx1", amount = 1) %>%         
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-                        set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+                        set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle) %>% 
+                        set_attribute(keys = "cycle.costs", mod = "+", values = c.Tx1.cycle()) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -479,9 +462,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-                        set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+                        set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.minor)) %>% 
+                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor)) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%           
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -496,9 +479,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-                        set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+                        set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle, c.major)) %>% 
+                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major)) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%         
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -513,9 +496,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         seize(resource = "Tx1", amount = 1) %>%                                                                    # occupy a place in first-line treatment
                         timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in first-line treatment for the determined time
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
-                        set_attribute(keys = "cycle.costs", value = c.Tx1.day) %>%
+                        set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle)) %>% 
+                        set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx1.cycle())) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%           
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -555,9 +538,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
+               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle()))%>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -571,9 +554,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -588,9 +571,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle, c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major)) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -604,9 +587,9 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
                timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
-               set_attribute(keys = "cycle.costs", value = c.Tx2.day) %>%
+               set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle)) %>% 
+               set_attribute(keys = c("cycle.costs"), mod = "+", values = c(c.Tx2.cycle())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>% 
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
