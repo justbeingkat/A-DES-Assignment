@@ -50,6 +50,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     # Load the dataset
     load("trial_dataset.RData");
     
+    # Define parameters
     # Patient characteristics 
     p.male <- 0.34;                               # probability of being male
     p.women <- 1 - 0.34; 
@@ -66,11 +67,18 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     age.men.d <- dnorm(x.m, m.age.men, sd.age.men);
     
     # Tx general
+    #t.cycle <- 30;    # average time of a normal treatment cycle
+    #t.major <- 6;     # average time of a cycle in which major complications occur
+    #t.death <- 15;    # average time of a cycle in which the patient dies
     
     t.normal <- function(){return(rweibull(n = 1, shape = 16, scale = 31))} #Time to event step 1
     t.minor <- function(){return(rweibull(n = 1, shape = 13, scale = 31))} #Time to event step 2
     t.major <- function(){return(rweibull(n = 1, shape = 5, scale = 6))} #Time to event step 1
     t.death <- function(){return(rweibull(n = 1, shape = 2, scale = 18))} #Time to event step 2
+    
+    #p.minor <- 0.10;  # probability of minor complications in a cycle
+    #p.major <- 0.04;  # probability of major complications in a cycle
+    #p.death <- 0.03;  # probability of death in a cycle
     
     #responsive probabillities 
     p.minor.responsive.poor.Tx1 <-0.066666667
@@ -102,15 +110,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     c.Tx1.day <- 8.50;       # additional daily costs when on treatment Tx1
     u.Tx1 <- 0.55/36;    # utility per day when on treatment Tx1
     u.Tx1.Response <- function(){return(rnorm(n = 1, mean = 0.4695, sd = 0.1214))}; 
-    u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.46423, sd = 0.14172))};
-    
-    #New normal distribution function 
-    Response.mean <- 0.676
-    Response.sd <- 0.461
-    NoResponse.mean <- 0.969
-    NoResponse.sd <- 0.469
-    Tx1.C1.Dx.Test1.Response <- function(){return(rnorm(1, 0.676, 0.461))};
-    Tx1.C1.Dx.Test1.NoResponse <- function(){return(rnorm(1, 0.969, 0.469))};
+    u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.46423, sd = 0.14172))}; 
     
     p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
     p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
@@ -122,7 +122,6 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     
     u.Tx2.Response <- function(){return(rnorm(n = 1, mean = 0.53106, sd = 0.1316209))};
     u.Tx2.NoResponse <- function(){return(rnorm(n = 1, mean = 0.54499, sd = 0.113477))};
-    
     p.Tx2.respondedTx1 <- 0.3493
     p.Tx2.notrespondedTx1 <- 0.6771
     
@@ -130,16 +129,31 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     p.Tx2.yes.exp <- seq(from=0.39, to=0.47, by=0.02);                                               # probability of effective Tx2 treatment when responded to Tx1, dependent on cycles Tx1 
     p.Tx2.no.exp <- seq(from=0.87, to=0.31, by=-0.14);                                               # probability of effective Tx2 treatment when not responded to Tx1, dependent on cycles Tx1 
     
+    #New normal distribution function 
+    Response.mean <- 0.676
+    Response.sd <- 0.461
+    NoResponse.mean <- 0.969
+    NoResponse.sd <- 0.469
+    Tx1.C1.Dx.Test1.Response <- function(){return(rnorm(1, 0.676, 0.461))};
+    Tx1.C1.Dx.Test1.NoResponse <- function(){return(rnorm(1, 0.969, 0.469))};
+    Tx1.C1.Dx.Test1 <- function(){return(rnorm(1, 0.515, 1.034053))};
+    
+    
     # FU1 en FU2 specific
+    #t.fu1.full <- 63          # average time spent in the first follow up if the patient survives during follow up
+    #t.fu1.death <- 42         # average time spent in the first follow up if the patient dies during follow up
+    #t.fu2 <- 100              # average time spent in the second follow up after Tx2
     p.death.followup <- 0.05; # probability of dying during first follow up
     
     t.fu1.normal <- function(){rexp(1, rate = 0.0167)}
     t.fu1.dead <- function(){rexp(1, rate = 0.0273)}
     t.fu2 <- function(){rexp(1, rate=0.0072)}
     
+    ## Section 3: Supportive functions ----
     
-    ## Supportive functions
+    # Functions for determining the event to happen
     
+    # Function for defining the event during a cycle of treatment
     Tx.event.cycle <- function(response, poor) {
       poor <- ifelse(runif(1) < p.poor, 1, 0)
       if (response == 1){
@@ -211,7 +225,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
         return(t.fu1.death)  # Duration for death during followup
       }
     }
-    Tx1.Response <- function(poor) {
+    Tx1.Response <- function() {
       poor <- ifelse(runif(1) < p.poor, 1, 0)
       if (poor == 0){
         return(ifelse(runif(1) < p.Tx1.good, 1, 0))
@@ -229,16 +243,26 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     }
     
     get.Tx1.event.exp <- function(response, cycle){
-      if(cycle == 1){
-        return(1)
+      if(cycle == 0){
+        return(2)
       }else if (response == 1){
         test.result <- Tx1.C1.Dx.Test1.Response()
-        event <- ifelse(test.result < Response.mean + Response.sd, 0, 1)
+        event <- ifelse(test.result < Response.mean + Response.sd, 1, 2)
         return(event)
       } else if (response == 0) {
         test.result <- Tx1.C1.Dx.Test1.NoResponse()
-        event <- ifelse(test.result < NoResponse.mean + Response.sd, 0, 1)
+        event <- ifelse(test.result < NoResponse.mean + Response.sd, 1, 2)
         return(event)
+      }
+    }
+    
+    Tx2.Response.exp <- function(cycle, tx1response){
+      if(tx1response == 1){
+        response <- ifelse(runif(1)<p.Tx2.yes.exp[cycle], 1, 0)
+        return(response)
+      }else if (tx1response == 0){
+        response <- ifelse(runif(1)<p.Tx2.no.exp[cycle], 1, 0)
+        return(response)
       }
     }
     
@@ -621,7 +645,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     exp.sim <- simmer() %>%
       add_resource(name="Tx1", capacity=Inf, mon=F) %>%
       add_resource(name="Tx2", capacity=Inf, mon=F) %>%
-      add_generator(name_prefix="Patient", trajectory=bsc.model, distribution=at(rep(x=0, times=n.patients)), mon=mon.patients)
+      add_generator(name_prefix="Patient", trajectory=exp.model, distribution=at(rep(x=0, times=n.patients)), mon=mon.patients)
     
     # Run the BSC simulation
     exp.sim %>% 
