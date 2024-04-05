@@ -258,6 +258,7 @@ exp.model <- trajectory() %>%
   set_attribute(key = "Total.Costs", value = 0) %>%
   set_attribute(key = "Total.Utility", value = 0) %>%
   set_attribute(key = "Cycle Count Tx1", value = 0) %>%
+  set_attribute(key = "Cycle Count Tx2", value = 0) %>%
   # First-line treatment
   set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(exp.sim, "Tx1.Response"),get_attribute(exp.sim, "Cycle Count Tx1"))) %>%
   set_attribute(keys = "Total.Costs", mod = "+", values = 950) %>%
@@ -365,6 +366,7 @@ exp.model <- trajectory() %>%
          # Event 1: Full cycle
          trajectory() %>%
            log_("Full cycle 2") %>%
+           set_attribute(keys = "Cycle Count Tx2", mod = "+", values = 1) %>%
            set_attribute(key = "Tx.time.cycle", value = function() t.normal()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
@@ -376,11 +378,12 @@ exp.model <- trajectory() %>%
            set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%           
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-           rollback(target = 14, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),
+           rollback(target = 15, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx2") < 5),
          
          # Event 2: Minor complication
          trajectory() %>%
            log_("minor 2") %>%
+           set_attribute(keys = "Cycle Count Tx2", mod = "+", values = 1) %>%
            set_attribute(key = "Tx.time.cycle", value = function() t.minor()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
@@ -393,11 +396,12 @@ exp.model <- trajectory() %>%
            set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
            set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
            set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-           rollback(target = 15, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),
+           rollback(target = 16, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx2") < 5),
          
          # Event 3: Major complication
          trajectory() %>%
            log_("major 2") %>%
+           set_attribute(keys = "Cycle Count Tx2", mod = "+", values = 1) %>%
            set_attribute(key = "Tx.time.cycle", value = function() t.major()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
@@ -414,6 +418,7 @@ exp.model <- trajectory() %>%
          # Event 4: Death
          trajectory() %>%
            log_("death 2") %>%
+           set_attribute(keys = "Cycle Count Tx2", mod = "+", values = 1) %>%
            set_attribute(key = "Tx.time.cycle", value = function() t.death()) %>%  # determine how long the cycle will last
            seize(resource = "Tx2", amount = 1) %>%                                                                    # occupy a place in second-line treatment
            timeout_from_attribute(key = "Tx.time.cycle") %>%                                                          # stay in second-line treatment for the determined time
