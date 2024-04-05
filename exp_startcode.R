@@ -239,9 +239,11 @@ get.Tx1.event.exp <- function(response, cycle){
 
 Tx2.Response.exp <- function(cycle, tx1response){
   if(tx1response == 1){
-    ifelse(runif(1)<p.Tx2.yes.exp[cycle], 1, 0)
-  }else if (tx1response == 2){
-    ifelse(runif(1)<p.Tx2.no.exp[cycle], 1, 0)
+    response <- ifelse(runif(1)<p.Tx2.yes.exp[cycle], 1, 0)
+    return(response)
+  }else if (tx1response == 0){
+    response <- ifelse(runif(1)<p.Tx2.no.exp[cycle], 1, 0)
+    return(response)
   }
 }
 ## Section 4: Discrete event simulation model ----
@@ -456,4 +458,4 @@ exp.sim %>%
 # Get the outcomes for the monitored attributes
 exp.out <- get_mon_attributes(exp.sim);             # retrieve the monitor object
 getSingleAttribute("Total.Costs", exp.out);               # get patient-level outcomes for the attribute of interest
-View(getMultipleAttributes(c("Tx1.Response", "Tx2.Response.exp"), exp.out));   # get outcomes for multiple outcomes at the same 
+View(getMultipleAttributes(c("Tx1.Response", "Tx2.Response"), exp.out));   # get outcomes for multiple outcomes at the same 
