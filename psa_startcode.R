@@ -72,8 +72,8 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     t.death <- function(){return(rweibull(n = 1, shape = 2, scale = 18))} #Time to event step 2
     
     #responsive probabillities 
-    p.minor.responsive.poor.Tx1 <-0.066666667
-    p.minor.responsive.good.Tx1 <- 0.038934426
+    p.minor.responsive.poor.Tx1 <- function(){return (rbeta(n=1, shape1 = 6, shape2 = 84))}
+    p.minor.responsive.good.Tx1 <- function(){return (rbeta(n=1, shape1 = 19, shape2 = 469))}
     
     p.major.responsive.poor.Tx1 <- 0.077777778
     p.major.responsive.good.Tx1 <-0.024590164
@@ -82,25 +82,26 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     p.death.responsive.good.Tx1 <- 0.028688525
     
     #not responsive probabillities
-    p.minor.not.responsive.poor.Tx1 <-0.226950355
-    p.minor.not.responsive.good.Tx1 <- 0.162162162
+    p.minor.not.responsive.poor.Tx1 <- function(){return (rbeta(n=1, shape1 = 32, shape2 = 109))}
+    p.minor.not.responsive.good.Tx1 <- function(){return (rbeta(n=1, shape1 = 72, shape2 = 372))}
     
-    p.major.not.responsive.poor.Tx1 <- 0.141843972
-    p.major.not.responsive.good.Tx1 <-0.11261261
+    p.major.not.responsive.poor.Tx1 <- 0.141844
+    p.major.not.responsive.good.Tx1 <-0.1123126
     
     p.death.not.responsive.poor.Tx1 <- 0.021276596
     p.death.not.responsive.good.Tx1 <- 0.031531532
     
-    c.minor <- 487; 
-    c.major <- 14897;
+    c.minor <- function(){return (rnorm(n=1, mean = 487, sd = 48))}; 
+    c.major <- function(){return (rlnorm(n=1, 14897, 536))};
     u.minor <- 0.051;
     u.major <- 0.089
     
     # Tx1 specific
     c.Tx1.cycle <- function(){return(rnorm(n = 1, mean = 351, sd = 26))};   # costs of a cycle of Tx1
     c.Tx1.day <- function(){return(rnorm(n = 1, mean = 8.50, sd = 1.3))};   # costs per day of Tx1
-    u.Tx1.Response <- function(){return(rnorm(n = 1, mean = 0.4695, sd = 0.1214))}; 
-    u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.46423, sd = 0.14172))}; 
+    c.Tx1.DX <- function(){return(rnorm(n=1, mean = 921, sd = 19))}
+    u.Tx1.Response <- function(){return(rnorm(n = 1, mean = 0.8889, sd = 0.0115))}; 
+    u.Tx1.NoResponse <- function(){return(rnorm(n = 1, mean = 0.6381, sd = 0.298))}; 
     
     p.Tx1.poor <- mean(data$Tx1.C1.Dx.Pet[data$Poor==1]==1, na.rm=T);                               # probability of effective Tx1 treatment when in poor condition
     p.Tx1.good <- mean(data$Tx1.C1.Dx.Pet[data$Poor==0]==1, na.rm=T);                               # probability of effective Tx1 treatment when in good condition
@@ -108,8 +109,8 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     # Tx2 specific
     c.Tx2.cycle <- function(){return(rnorm(n = 1, mean = 4141, sd = 461))}; # costs of a cycle of Tx2
     c.Tx2.day <- function(){return(rnorm(n = 1, mean = 19, sd = 2))};   # additional daily costs when on treatment Tx2
-    u.Tx2.Response <- function(){return(rnorm(n = 1, mean = 0.53106, sd = 0.1316209))};
-    u.Tx2.NoResponse <- function(){return(rnorm(n = 1, mean = 0.54499, sd = 0.113477))};
+    u.Tx2.Response <- function(){return(rnorm(n = 1, mean = 0.7794, sd = 0.02031))};
+    u.Tx2.NoResponse <- function(){return(rnorm(n = 1, mean = 0.8882, sd = 0.4773))};
     p.Tx2.respondedTx1 <- 0.3493
     p.Tx2.notrespondedTx1 <- 0.6771
     
@@ -126,7 +127,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     Tx1.C1.Dx.Test1.NoResponse <- function(){return(rnorm(1, 0.969, 0.469))};
     Tx1.C1.Dx.Test1 <- function(){return(rnorm(1, 0.515, 1.034053))};
     
-    p.death.followup <- 0.05; # probability of dying during first follow up
+    p.death.followup <- function(){return (rbeta(n=1, shape1 = 48, shape2 = 980))}; # probability of dying during first follow up
     
     t.fu1.normal <- function(){rexp(1, rate = 0.0167)}
     t.fu1.dead <- function(){rexp(1, rate = 0.0273)}
@@ -141,22 +142,22 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
       poor <- ifelse(runif(1) < p.poor, 1, 0)
       if (response == 1){
         if (poor == 1){
-          p.complete <- 1 - p.minor.responsive.poor.Tx1 - p.major.responsive.poor.Tx1 - p.death.responsive.poor.Tx1  
-          event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.poor.Tx1, p.major.responsive.poor.Tx1, p.death.responsive.poor.Tx1))
+          p.complete <- 1 - p.minor.responsive.poor.Tx1() - p.major.responsive.poor.Tx1 - p.death.responsive.poor.Tx1  
+          event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.poor.Tx1(), p.major.responsive.poor.Tx1, p.death.responsive.poor.Tx1))
           return(event)
         } else if (poor == 0) {
-          p.complete <- 1 - p.minor.responsive.good.Tx1 - p.major.responsive.good.Tx1 - p.death.responsive.good.Tx1  
-          event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.good.Tx1, p.major.responsive.good.Tx1, p.death.responsive.good.Tx1))
+          p.complete <- 1 - p.minor.responsive.good.Tx1() - p.major.responsive.good.Tx1 - p.death.responsive.good.Tx1  
+          event <- sample(1:4, 1, prob = c(p.complete, p.minor.responsive.good.Tx1(), p.major.responsive.good.Tx1, p.death.responsive.good.Tx1))
           return(event)
         }
       } else if (response == 0){
         if (poor == 1){
-          p.complete <- 1 - p.minor.not.responsive.poor.Tx1 - p.major.not.responsive.poor.Tx1 - p.death.not.responsive.poor.Tx1  
-          event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.poor.Tx1, p.major.not.responsive.poor.Tx1, p.death.not.responsive.poor.Tx1))
+          p.complete <- 1 - p.minor.not.responsive.poor.Tx1() - p.major.not.responsive.poor.Tx1 - p.death.not.responsive.poor.Tx1  
+          event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.poor.Tx1(), p.major.not.responsive.poor.Tx1, p.death.not.responsive.poor.Tx1))
           return(event)
         } else if (poor == 0) {
-          p.complete <- 1 - p.minor.not.responsive.good.Tx1 - p.major.not.responsive.good.Tx1 - p.death.not.responsive.good.Tx1  
-          event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.good.Tx1, p.major.not.responsive.good.Tx1, p.death.not.responsive.good.Tx1))
+          p.complete <- 1 - p.minor.not.responsive.good.Tx1() - p.major.not.responsive.good.Tx1 - p.death.not.responsive.good.Tx1  
+          event <- sample(1:4, 1, prob = c(p.complete, p.minor.not.responsive.good.Tx1(), p.major.not.responsive.good.Tx1, p.death.not.responsive.good.Tx1))
           return(event)
         }
       }
@@ -165,7 +166,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
     Tx1.event.fu1 <- function() {
       
       #select event during follow up
-      event <- ifelse(runif(1) < p.death.followup, 2, 1)
+      event <- ifelse(runif(1) < p.death.followup(), 2, 1)
       
       return(event)
     }
@@ -286,7 +287,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -302,7 +303,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(bsc.sim, "Tx1.Response"))) %>%         
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -371,7 +372,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -387,7 +388,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(bsc.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(bsc.sim, "Tx2.Response"))) %>%
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(bsc.sim, "Tx.time.cycle")) %>%
@@ -430,6 +431,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
       set_attribute(key = "Cycle Count Tx1", value = 0) %>%
       # First-line treatment
       set_attribute(key = "Tx.test.decision", value = function() get.Tx1.event.exp(get_attribute(exp.sim, "Tx1.Response"),get_attribute(exp.sim, "Cycle Count Tx1"))) %>%
+      set_attribute(keys = "Total.Costs", mod = "+", values = c.Tx1.DX()) %>%
       branch(option = function() get_attribute(exp.sim, "Tx.test.decision"), continue = c(T, T),
              trajectory()%>%
                log_("Bad Score"),
@@ -452,7 +454,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
                         set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-                        rollback(target = 17, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),
+                        rollback(target = 18, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),
                       
                       # Event 2: Minor complication
                       trajectory() %>%
@@ -464,13 +466,13 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor)) %>% 
+                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.minor())) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%           
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
                         set_attribute(keys = "cycle.utility", mod = "+", values = -u.minor) %>%
                         set_attribute(keys = "Total.Utility", mod = "+", values = function() get_attribute(exp.sim, "cycle.utility")) %>%
-                        rollback(target = 18, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),                  
+                        rollback(target = 19, times=5, check = function() get_attribute(exp.sim, "Cycle Count Tx1") < 5),                  
                       # Event 3: Major complication
                       trajectory() %>%
                         log_("Major") %>%
@@ -481,7 +483,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                         release(resource = "Tx1", amount = 1) %>%                                                                  # leave first-line treatment
                         set_attribute(keys = "cycle.costs", value = c.Tx1.day()) %>%
                         set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major)) %>% 
+                        set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx1.cycle(), c.major())) %>% 
                         set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                         set_attribute(key = "cycle.utility", value = function() Tx1.utility(get_attribute(exp.sim, "Tx1.Response"))) %>%         
                         set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -556,7 +558,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.minor())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%           
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
@@ -573,7 +575,7 @@ runPSA <- function(n.patients, n.runs, free.cores=1, seed=1234) {
                release(resource = "Tx2", amount = 1) %>%                                                                  # leave second-line treatment
                set_attribute(keys = "cycle.costs", value = c.Tx2.day()) %>%
                set_attribute(keys = "cycle.costs", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>% #determine the costs
-               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major)) %>% 
+               set_attribute(keys = c("cycle.costs", "cycle.costs"), mod = "+", values = c(c.Tx2.cycle(), c.major())) %>% 
                set_attribute(keys = "Total.Costs", mod = "+", values = function() get_attribute(exp.sim, "cycle.costs")) %>%
                set_attribute(key = "cycle.utility", value = function() Tx2.utility(get_attribute(exp.sim, "Tx2.Response"))) %>%
                set_attribute(keys = "cycle.utility", mod = "*", values = function() get_attribute(exp.sim, "Tx.time.cycle")) %>%
